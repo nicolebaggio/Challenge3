@@ -7,7 +7,7 @@ DOXYFILE = Doxyfile
 SRCS = main.cpp 
 OBJS = $(SRCS:.cpp=.o)
 
-all: main
+all: main 
 
 main: $(OBJS)
 	$(CXX) $(CXXFLAGS) $(OBJS) -o $@
