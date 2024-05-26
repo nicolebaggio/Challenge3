@@ -8,11 +8,23 @@
 
 const double pi=3.14159265358979323846;
 std::function<double(double , double )> f=[](double x,double y)->double{
-    return 8*pi*pi* sin(pi*x)*cos(pi*y);
+    return 8*pi*pi* sin(2*pi*x)*cos(2*pi*y);
 };
 
 
-int check_convergence(std::vector<std::vector<double>> U, std::vector<std::vector<double>> U1,double h);
+int check_convergence(std::vector<std::vector<double>> U, std::vector<std::vector<double>> U1,double h){
+  double tol=1e-1;
+  double s=0.0;
+  for(int i=0; i<U.size(); i++){
+       for(int j=0; j<U[i].size(); j++){
+             s+=abs((U[i][j]-U1[i][j])*(U[i][j]-U1[i][j]));
+       }
+   }
+  if(std::sqrt(h*s)<tol){
+       return 1;
+   }
+  return 0;
+};
 
 int main(int argc, char *argv[]) {
     MPI_Init(&argc, &argv);
@@ -20,122 +32,132 @@ int main(int argc, char *argv[]) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
    
 
-    int n;
-    int size;
-    std::vector<std::vector<double>> U(0);
+    int n,size;
 
     if(rank==0){
-        std::cout<<"Enter the number of parallel tasks"<<std::endl;
+        std::cout<<"Enter the number of parallel tasks:"<<std::endl;
         std::cin>>size;
-        std::cout<<"Enter the size of the matrix"<<std::endl;
+        if (size<1){
+            std::cout<<"The number of parallel tasks should be greater than 0"<<std::endl;
+            return 0;
+        }
+        std::cout<<"Enter the size of the matrix:"<<std::endl;
         std::cin>>n;
+        if (n<1){
+            std::cout<<"The size of the matrix should be greater than 0"<<std::endl;
+            return 0;
+        }
     }
-    
 
     MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&size, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-    U.resize(n);
-    for(int i=0; i<n; i++){
-        U[i].resize(n,0.0);
-    }; 
-   
+    std::vector<std::vector<double>> U(n,std::vector<double>(n,0.0));
+    std::vector<std::vector<double>> U1(n,std::vector<double>(n,0.0));
 
-    int local_nrows = (n % size > rank) ? n/size +1 : n/size;
+    std::vector<int> local_r(size,0);
+    std::vector<int> local_start_idx(size,0);
 
-    int start_idx = 0;
-    std::vector<int> recv_counts(size);
-    std::vector<int> send_counts(size);
-    std::vector<int> recv_start_idx(size);
-    std::vector<int> send_start_idx(size);
-
-  for (int i = 0; i < size; ++i)
-    {
-      recv_counts[i] = (n % size > i) ? n / size + 1 : n / size;
-      send_counts[i] = recv_counts[i] * n;
-
-      recv_start_idx[i] = start_idx;
-      send_start_idx[i] = start_idx * n;
-
-      start_idx += recv_counts[i];
+    int start_idx=0;
+    for(int i=0; i<size; i++){
+        local_r[i]=(n % size<i) ? n/size+1 : n/size;
+        local_start_idx[i]=start_idx;
+        start_idx+=local_r[i];
     }
 
-    int h=1/n;
-    std::vector<std::vector<double>> U1=U;
-
-    int conv_tot=0;
+    double h=1.0/(n-1);
 
     if(rank==0){
       for(int iter=0; iter<100; iter++){
-      for (int i=1; i<recv_start_idx[i]; ++i){
-        for(int j=1; j<n; ++j){
-          U1[i][j]=1/4 * (U[i-1][j]+U[i+1][j]+U[i][j-1]+U[i][j+1]+h*h*f(i*h,j*h));
-        }
-      }
-      MPI_Send(U[recv_start_idx[0]+recv_counts[0]-1].data(), n, MPI_DOUBLE, 1, 0, MPI_COMM_WORLD);
-      int convergence=check_convergence(U,U1,h);
-      int conv_tot=0;
-      MPI_Allgather(&convergence, 1, MPI_INT, &conv_tot, 1, MPI_INT, MPI_COMM_WORLD);
-      if(conv_tot==size){
-            break;
-      }
-      for (int i=1; i<recv_start_idx[i]; ++i){
-        for(int j=1; j<n; ++j){
-          U[i][j]=U1[i][j];
-        }
-        MPI_Gather(U[i].data(), n, MPI_DOUBLE, U[i].data(), n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      } 
-    }
-
-    }
-
-
-    for (int i=1; i<size; ++i){
-      if(rank==i){
-        for(int iter=0; iter<100; iter++){
-        std::vector<double> previous_vec(n,0.0);
-        MPI_Recv(U[recv_start_idx[i]-1].data(), n, MPI_DOUBLE, i-1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        for (int i=recv_start_idx[i]; i<recv_start_idx[i]+recv_counts[i]; ++i){
+        for (int i=1; i<local_r[0]; ++i){
           for(int j=1; j<n; ++j){
             U1[i][j]=1/4 * (U[i-1][j]+U[i+1][j]+U[i][j-1]+U[i][j+1]+h*h*f(i*h,j*h));
           }
-        }
-        if(i!=size)
-            MPI_Send(U[recv_start_idx[i]+recv_counts[i]-1].data(), n, MPI_DOUBLE, i+1, 0, MPI_COMM_WORLD);
-        int convergence=check_convergence(U,U1,h);
-        int conv_tot=0;
-        MPI_Allgather(&convergence, 1, MPI_INT, &conv_tot, 1, MPI_INT, MPI_COMM_WORLD);
-        if(conv_tot==size){
-            break;
-        }
-        for (int i=1; i<recv_start_idx[i]; ++i){
-           for(int j=1; j<n; ++j){
-              U[i][j]=U1[i][j];
-            }
-        MPI_Gather(U[recv_start_idx[i]].data(), n, MPI_DOUBLE, U[recv_start_idx[i]].data(), n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      }  
-
       }
+
+      MPI_Send(U1[local_r[0]-1].data(), n, MPI_DOUBLE, 1, 0, MPI_COMM_WORLD);
+      int convergence=check_convergence(U,U1,h);
+      for (int i=local_start_idx[0]; i<local_start_idx[1]; ++i){
+             for(int j=1; j<n; ++j){
+               U[i][j]=U1[i][j];
+              }
+          }  
+       if(convergence==1){
+         for(int i=local_start_idx[r]; i<local_start_idx[r+1]; ++i){
+            MPI_Gather(U[i].data(), n, MPI_DOUBLE, U[i].data(), n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+         }
+           break;
       }
     }
+    }
 
-  
+    for (int r=1; r<size; ++r){
+      if(rank==r && r!=size-1){
+        for(int iter=0; iter<100; iter++){
+           MPI_Barrier(MPI_COMM_WORLD); 
+           MPI_Recv(U[local_start_idx[r]-1].data(), n, MPI_DOUBLE, r-1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+           for (int i=local_start_idx[r]; i<local_start_idx[r+1]; ++i){
+             for(int j=1; j<n; ++j){
+               U1[i][j]=1/4 * (U[i-1][j]+U[i+1][j]+U[i][j-1]+U[i][j+1]+h*h*f(i*h,j*h));
+             }
+           }
+        
+           MPI_Send(U1[local_start_idx[r]+local_r[r]-1].data(), n, MPI_DOUBLE, rank+1, 0, MPI_COMM_WORLD);
+    
+          int convergence=check_convergence(U,U1,h);
+          for (int i=local_start_idx[r]; i<local_start_idx[r+1]; ++i){
+             for(int j=1; j<n; ++j){
+               U[i][j]=U1[i][j];
+              }
+          }  
+          if(convergence==1){
+            for(int i=local_start_idx[r]; i<local_start_idx[r+1]; ++i){
+              MPI_Gather(U[i].data(), n, MPI_DOUBLE, U[i].data(), n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+            }
+            break;
+         }
+
+      }
+      }
+      else if(rank==r && r==size-1){
+        for(int iter=0; iter<100; iter++){
+           MPI_Recv(U[local_start_idx[r]-1].data(), n, MPI_DOUBLE, r-1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+           for (int i=local_start_idx[r]; i<local_start_idx[r]+local_r[r]; ++i){
+             for(int j=1; j<n; ++j){
+               U1[i][j]=1/4 * (U[i-1][j]+U[i+1][j]+U[i][j-1]+U[i][j+1]+h*h*f(i*h,j*h));
+             }
+           }
+           MPI_Barrier(MPI_COMM_WORLD);    
+           int convergence=check_convergence(U,U1,h);
+           for (int i=local_start_idx[r]; i<local_start_idx[r+1]; ++i){
+             for(int j=1; j<n; ++j){
+               U[i][j]=U1[i][j];
+              }
+          }  
+          if(convergence==1){
+            for(int i=local_start_idx[r]; i<local_start_idx[r+1]; ++i){
+              MPI_Gather(U[i].data(), n, MPI_DOUBLE, U[i].data(), n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+            }
+            break;
+         }
+        }
+      }
+
+    }
+   
+    
+
+
+    if (rank == 0) {
+       for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                std::cout << U[i][j] << " ";
+            }
+            std::cout << std::endl;
+        }
+    }
     
     MPI_Finalize();
     return 0;
 }
 
-
-int check_convergence(std::vector<std::vector<double>> U, std::vector<std::vector<double>> U1, double h){
-    double tol=1e-1;
-    double s=0.0;
-    for(int i=0; i<U.size(); i++){
-        for(int j=0; j<U[i].size(); j++){
-               s+=abs((U[i][j]-U1[i][j])*(U[i][j]-U1[i][j]));
-        }
-    }
-    if(std::sqrt(h*s)<tol){
-        return 1;
-    }
-    return 0;
-}
