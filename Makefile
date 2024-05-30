@@ -1,4 +1,4 @@
-CC = g++
+CC = mpicxx
 CXXFLAGS = -std=c++20
 CPPFLAGS= -Wall -03 -I include
 
@@ -10,7 +10,7 @@ OBJS = $(SRCS:.cpp=.o)
 all: main 
 
 main: $(OBJS)
-	$(CXX) $(CXXFLAGS) $(OBJS) -o $@
+	$(CXX) $(CXXFLAGS) $(OBJS) -o $@ -lmpi
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
