@@ -1,3 +1,4 @@
+#include "chrono.hpp"
 #include <vector>
 #include <functional>
 #include <iostream>
@@ -5,6 +6,8 @@
 #include <fstream>
 #include <mpi.h>
 #include <omp.h>
+
+using namespace Timings;
 
 
 
@@ -19,6 +22,18 @@ const double pi = 3.14159265358979323846;
 std::function<double(double, double)> f = [](double x, double y) -> double {
     return 8 * pi * pi * sin(2 * pi * x) * cos(2 * pi * y);
 };
+
+
+/*!
+    * \brief Function to calculate the exact solution of the problem
+    * \param x The x coordinate
+    * \param y The y coordinate
+    * \return The exact solution at (x, y)
+*/
+std::function<double(double, double)> exact_solution = [](double x, double y) -> double {
+    return sin(2 * pi * x) * cos(2 * pi * y);
+};
+
 
 /*!
     * \brief Function to check the convergence of the solution
@@ -41,6 +56,27 @@ int check_convergence(const std::vector<std::vector<double>>& U, const std::vect
     }
     return 0;
 };
+
+/*!
+    * \brief Function to compute the L2 norm of the error
+    * \param U The solution
+    * \param n The size of the matrix
+    * \param h The step size
+    * \return The L2 norm of the error
+*/
+double compute_l2_norm(const std::vector<std::vector<double>>& U, int n, double h) {
+    double s = 0.0;
+    #pragma omp parallel for reduction(+:s)
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < n; ++j) {
+            double xi = i * h;
+            double yj = j * h;
+            double error = f(xi, yj) - U[i][j];
+            s += error * error;
+        }
+    }
+    return std::sqrt(h * s);
+}
 
 
 /*!
@@ -126,6 +162,8 @@ int main(int argc, char *argv[]) {
     std::vector<int> local_start_idx(size, 0);
 
     int start_idx = 0;
+    Chrono clock;
+    clock.start();
     for (int i = 0; i < size; i++) {
         local_r[i] = (n / size) + (i < (n % size) ? 1 : 0);
         local_start_idx[i] = start_idx;
@@ -172,6 +210,7 @@ int main(int argc, char *argv[]) {
             break;
         }
     }
+    clock.stop();
 
     // Gather the full matrix on rank 0
     if (rank == 0) {
@@ -188,14 +227,10 @@ int main(int argc, char *argv[]) {
 
     // Print the matrix on rank 0
     if (rank == 0) {
-       // for (int i = 0; i < n; i++) {
-           // for (int j = 0; j < n; j++) {
-             //   std::cout << U[i][j] << " ";
-         //   }
-          //  std::cout << std::endl;
-     //   }
         write_vtk(U, n, h, "solution.vtk");
         std::cout << "Solution written to solution.vtk" << std::endl;
+        std::cout << "L2 norm of the error: " << compute_l2_norm(U, n, h) << std::endl;
+        std::cout << "Execution time: "<< clock.wallTime() << " microseconds" << std::endl;
     }
 
     MPI_Finalize();

@@ -1,25 +1,17 @@
-CC = mpicxx
-CXXFLAGS = -std=c++20
-CPPFLAGS= -Wall -03 -I include
+CC = /u/sw/toolchains/gcc-glibc/11.2.0/base/bin/mpic++
+CFLAGS = -I. -Ishared-folder/try -Wall -Werror -std=c++17 -O3 -fopenmp
 
-DOXYFILE = Doxyfile
-
-SRCS = main.cpp 
+SRCS = main.cpp chrono.hpp
 OBJS = $(SRCS:.cpp=.o)
 
-all: main 
+all: main
 
 main: $(OBJS)
-	$(CXX) $(CXXFLAGS) $(OBJS) -o $@ -lmpi
+	$(CC) $(CFLAGS) $(OBJS) -o $@
 
 %.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-
+	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm *.o main 
-
-doc:
-	doxygen $(DOXYFILE)
-
+	rm -f $(OBJS) main
 
