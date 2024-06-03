@@ -24,16 +24,18 @@ The code includes proper OpenMP directives to further parallelize local computat
 To run the tests, follow these commands:
 
 1. **Compile the Program**:
-   ```bash
+```bash
    mpicxx -fopenmp -o hybrid_parallel_program main.cpp
 ```
-
+2. **Create the Data directory**:
 ```bash
   mkdir data
 ```
+3. **Run the Scalability Test**:
 ```bash
   ./scalability_test.sh
 ```
+4. **Generate and view the Performance Plot**:
 ```bash
   python plot_results.py
 
