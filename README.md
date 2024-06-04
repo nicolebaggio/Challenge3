@@ -50,4 +50,11 @@ To run the tests, follow these commands:
 ```
 
 ## Alternative main.cpp
-As an alternative, in the main.cpp you can find a piece of commented code that permits the user to set the size of the matrix and the number of processors interactively
+As an alternative, in the main.cpp you can find a piece of commented code that permits the user to set the size of the matrix and the number of processors interactively. In this way you can run the code with the follow commands:
+
+```bash
+   make
+```
+```bash
+   ./main
+```
