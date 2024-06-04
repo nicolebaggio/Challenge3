@@ -13,7 +13,15 @@ The code consists of the following main files: `main.cpp` ,`chrono.hpp`, `Makefi
 - **plot_results.py**: Plots the execution time and the L2-norm-error over the number of cores.
 
 
-The program prompts the user to set the dimension of the matrix (i.e., the number of space steps the method will perform) and the number of parallel tasks.
+The user can set the dimension of the matrix (i.e., the number of space steps the method will perform) and the number of parallel tasks by modifying the file `scalability_test.sh`, by changing this part of the code:
+```scalability_test.sh
+   # Number of processors to test
+   PROCS=(1 2 4)
+
+   # Grid size
+   N=64
+```
+
 
 ## OpenMP
 
@@ -41,3 +49,5 @@ To run the tests, follow these commands:
 
 ```
 
+## Alternative main.cpp
+As an alternative, in the main.cpp you can find a piece of commented code that permits the user to set the size of the matrix and the number of processors interactively

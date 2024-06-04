@@ -11,15 +11,12 @@ DATA_FOLDER="data"
 mkdir -p $DATA_FOLDER  # Create the data folder if it doesn't exist
 
 # Compile the program
-mpicxx -fopenmp -o hybrid_parallel_program main.cpp
+mpicxx -fopenmp -o main main.cpp
 
 # Run tests with different number of processors
 for PROC in "${PROCS[@]}"
 do
-  export OMP_NUM_THREADS=$PROC
-  mpirun -np $PROC ./hybrid_parallel_program << EOF
-$N
-$PROC
-EOF
+    mpirun -np $PROC ./main $N $PROC
+    echo "Test with $PROC processors completed."
 done
 

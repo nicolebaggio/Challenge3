@@ -4,46 +4,46 @@ import os
 # Folder containing the results
 data_folder = 'data'
 
-# Collect results
-grid_sizes = []
-execution_times = []
-l2_norm_errors = []
+# Initialize lists to hold the results
+procs = []
+times = []
+l2_norms = []
 
+# Iterate over the files in the data folder
 for filename in os.listdir(data_folder):
-    if filename.endswith('.txt'):
-        with open(os.path.join(data_folder, filename), 'r') as file:
-            lines = file.readlines()
+    if filename.startswith('result_') and filename.endswith('.txt'):
+        filepath = os.path.join(data_folder, filename)
+        with open(filepath, 'r') as f:
+            lines = f.readlines()
             grid_size = int(lines[0].strip().split(':')[1])
-            execution_time = float(lines[1].strip().split(':')[1])
-            l2_norm_error = float(lines[2].strip().split(':')[1])
-            
-            grid_sizes.append(grid_size)
-            execution_times.append(execution_time)
-            l2_norm_errors.append(l2_norm_error)
+            num_procs = int(lines[1].strip().split(':')[1])
+            l2_norm = float(lines[2].strip().split(':')[1])
+            exec_time_str = lines[3].strip().split(':')[1].strip()
+            exec_time = float(exec_time_str.split()[0])  # Only take the numeric part
 
-# Plot the results
-plt.figure(figsize=(12, 6))
+            procs.append(num_procs)
+            times.append(exec_time)
+            l2_norms.append(l2_norm)
 
-# Plot Execution Time
-plt.subplot(1, 2, 1)
-plt.plot(grid_sizes, execution_times, marker='o')
-plt.xlabel('Number of Processors')
-plt.ylabel('Execution Time (seconds)')
-plt.title('Execution Time vs Number of Processors')
+# Sort the results by number of processors
+procs, times, l2_norms = zip(*sorted(zip(procs, times, l2_norms)))
+
+# Plot the execution time
+plt.figure()
+plt.plot(procs, times, marker='o')
+plt.xlabel('Number of processors')
+plt.ylabel('Execution time (microseconds)')
+plt.title(f'Scalability Test - Execution Time (Grid size: {grid_size}x{grid_size})')
 plt.grid(True)
+plt.savefig('scalability_test_time.png')
 
-# Plot L2 Norm Error
-plt.subplot(1, 2, 2)
-plt.plot(grid_sizes, l2_norm_errors, marker='o')
-plt.xlabel('Number of Processors')
-plt.ylabel('L2 Norm Error')
-plt.title('L2 Norm Error vs Number of Processors')
+# Plot the L2 norm of the error
+plt.figure()
+plt.plot(procs, l2_norms, marker='o')
+plt.xlabel('Number of processors')
+plt.ylabel('L2 norm of the error')
+plt.title(f'Scalability Test - L2 Norm (Grid size: {grid_size}x{grid_size})')
 plt.grid(True)
+plt.savefig('scalability_test_l2_norm.png')
 
-# Save the plots as image files
-plt.tight_layout()
-plt.savefig('execution_time_vs_processors.png')
-plt.close()
-
-# Print a message indicating where the plots are saved
-print("Plots saved as 'execution_time_vs_processors.png' and 'l2_norm_error_vs_processors.png'.")
+plt.show()
