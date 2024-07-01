@@ -1,0 +1,21 @@
+Code is working: good job!
+
+However there is always room for improvement :)
+(1) The repo should have been more structured. I wanted a test folder in which I could have all the data from the test.
+    For example, if I wanted to make a new test I could just remove the whole test folder and replace it with a new one.
+(2) The MPI implementation in the presented case is not working efficiently. Why? I know that it is hard for this problem to obtain a good scaling, but at least comment on what is happening :)
+(3) Having blocks of commented code is very ugly: this is not definitly a good practice!
+   If you have several version of the same code consider having multiple main files. Consider also employing compiler directives combined with macros to switch at compile time between the code versions. 
+  For instance:
+
+#ifdef CODE_VERSION_1
+std::cout << "Hello world" << std::endl;
+#endif
+
+if you compile with:
+ mpicxx -fopenmp -o hybrid_parallel_program -D CODE_VERSION_1 main.cpp
+
+you will automatically switch between the different versions of your code.
+This becomes very handy, since I don't have to "randomly" uncomment code (I mean, I am not very smart, I could uncomment the wrong blocks of code)
+
+Nice python script to visualize the results!
